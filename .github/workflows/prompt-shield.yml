@@ -1,0 +1,62 @@
+# GitHub Action workflow template for gh-prompt-shield
+# Copy this into your repository's .github/workflows/ directory
+#
+# Scans new and updated issues/PRs for prompt injection patterns
+# targeting AI coding tools (Cline, Copilot, Cursor, etc.)
+
+name: Prompt Shield Scan
+
+on:
+  issues:
+    types: [opened, edited]
+  pull_request:
+    types: [opened, edited]
+  # Optional: run on a schedule to scan all open issues
+  # schedule:
+  #   - cron: '0 6 * * 1'  # Weekly Monday 6am
+
+permissions:
+  issues: read
+  pull-requests: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install gh-prompt-shield
+        run: pip install gh-prompt-shield
+
+      - name: Scan repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh-prompt-shield scan ${{ github.repository }} \
+            --state open \
+            --json \
+            > scan-results.json
+
+          # Check exit code: 0=clean, 1=findings, 2=error
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 1 ]; then
+            echo "::warning::Prompt injection patterns detected! Review scan-results.json"
+            cat scan-results.json | python -m json.tool
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "::error::Scan encountered errors"
+            cat scan-results.json
+          fi
+          exit $EXIT_CODE
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-shield-results
+          path: scan-results.json
