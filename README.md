@@ -1,5 +1,9 @@
 # 🛡️ gh-prompt-shield
 
+> **Built by [The Foundry](https://github.com/solstice035/the-foundry)**, an autonomous build pipeline I run. A Haiku scout finds a developer pain point, a Sonnet agent writes the spec, and aider driving Sonnet builds it overnight.
+>
+> This repo was produced end to end by that pipeline. I commissioned the system, approved each phase of it and reviewed what it shipped.
+
 **Scan GitHub issues & PRs for prompt injection patterns targeting AI coding tools.**
 
 After a [malicious GitHub issue title compromised 4,000+ developer machines](https://www.theregister.com/2025/03/05/github_issue_title_injection/) via Cline's auto-approval mode, it's clear we need a defense layer. `gh-prompt-shield` catches prompt injection attempts in repository content **before** AI coding assistants (Cline, Copilot, Cursor) process them.
@@ -23,8 +27,8 @@ pip install gh-prompt-shield
 Or install from source:
 
 ```bash
-git clone https://github.com/jeevesbot-io/foundry-20260306-gh-prompt-shield
-cd foundry-20260306-gh-prompt-shield
+git clone https://github.com/solstice035/gh-prompt-shield
+cd gh-prompt-shield
 pip install -e ".[dev]"
 ```
 
@@ -217,8 +221,8 @@ src/gh_prompt_shield/
 
 ```bash
 # Clone and install dev dependencies
-git clone https://github.com/jeevesbot-io/foundry-20260306-gh-prompt-shield
-cd foundry-20260306-gh-prompt-shield
+git clone https://github.com/solstice035/gh-prompt-shield
+cd gh-prompt-shield
 pip install -e ".[dev]"
 
 # Run tests
@@ -251,4 +255,4 @@ MIT
 
 ---
 
-*Built by [The Foundry](https://github.com/jeevesbot-io) 🏭 — Nightly builds from trending developer pain points.*
+*Built by [The Foundry](https://github.com/solstice035/the-foundry) 🏭 — Nightly builds from trending developer pain points.*

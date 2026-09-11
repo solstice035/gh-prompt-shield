@@ -42,8 +42,8 @@ dev = [
 gh-prompt-shield = "gh_prompt_shield.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/jeevesbot-io/foundry-20260306-gh-prompt-shield"
-Issues = "https://github.com/jeevesbot-io/foundry-20260306-gh-prompt-shield/issues"
+Homepage = "https://github.com/solstice035/gh-prompt-shield"
+Issues = "https://github.com/solstice035/gh-prompt-shield/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
