@@ -32,19 +32,22 @@ jobs:
           python-version: "3.12"
 
       - name: Install gh-prompt-shield
-        run: pip install gh-prompt-shield
+        # Not published to PyPI — install from the repository.
+        run: pip install git+https://github.com/solstice035/gh-prompt-shield.git
 
       - name: Scan repository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # The step runs under `bash -e`, so capture the exit code instead of
+          # letting a findings exit (1) kill the step before it's handled.
+          EXIT_CODE=0
           gh-prompt-shield scan ${{ github.repository }} \
             --state open \
             --json \
-            > scan-results.json
+            > scan-results.json || EXIT_CODE=$?
 
           # Check exit code: 0=clean, 1=findings, 2=error
-          EXIT_CODE=$?
           if [ $EXIT_CODE -eq 1 ]; then
             echo "::warning::Prompt injection patterns detected! Review scan-results.json"
             cat scan-results.json | python -m json.tool

